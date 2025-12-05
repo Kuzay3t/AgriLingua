@@ -95,13 +95,13 @@ async function generateTextResponse(message: string, language: string): Promise<
     console.log("RAG unavailable, using AI fallback:", error);
   }
 
-  // Use OpenAI for intelligent responses
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  if (openaiKey) {
-    return await generateAIResponse(message, language, ragContext, openaiKey);
+  // Use Groq for intelligent responses
+  const groqKey = Deno.env.get("GROQ_API_KEY");
+  if (groqKey) {
+    return await generateAIResponse(message, language, ragContext, groqKey);
   }
 
-  // Final fallback if no OpenAI key
+  // Final fallback if no Groq key
   return getEnhancedFallbackResponse(message, language);
 }
 
@@ -109,7 +109,7 @@ async function generateAIResponse(
   message: string,
   language: string,
   ragContext: string,
-  openaiKey: string
+  groqKey: string
 ): Promise<string> {
   const systemPrompts: Record<string, string> = {
     english: `You are AgriLingua, an expert agricultural assistant specializing in African farming practices, particularly in Nigeria.
@@ -170,14 +170,14 @@ NKA:
   };
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiKey}`,
+        "Authorization": `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "llama-3.3-70b-versatile",
         messages: [
           {
             role: "system",
@@ -199,9 +199,9 @@ NKA:
       return data.choices[0].message.content;
     }
 
-    throw new Error("Invalid OpenAI response");
+    throw new Error("Invalid Groq response");
   } catch (error) {
-    console.error("OpenAI API error:", error);
+    console.error("Groq API error:", error);
     return getEnhancedFallbackResponse(message, language);
   }
 }

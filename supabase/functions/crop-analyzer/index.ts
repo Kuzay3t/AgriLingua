@@ -90,22 +90,22 @@ function getDemoAnalysis(): AnalysisResult {
 }
 
 async function analyzeImage(imageBase64: string): Promise<AnalysisResult> {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  const groqApiKey = Deno.env.get('GROQ_API_KEY');
 
-  if (!openaiApiKey) {
-    console.log('OpenAI API key not configured, using demo mode');
+  if (!groqApiKey) {
+    console.log('Groq API key not configured, using demo mode');
     return getDemoAnalysis();
   }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${groqApiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'llama-3.2-90b-vision-preview',
         messages: [
           {
             role: 'user',
@@ -144,7 +144,7 @@ Be specific and actionable in your recommendations. If the image shows a healthy
     });
 
     if (!response.ok) {
-      console.log('OpenAI API error, falling back to demo mode');
+      console.log('Groq API error, falling back to demo mode');
       return getDemoAnalysis();
     }
 
