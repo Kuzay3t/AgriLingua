@@ -42,7 +42,11 @@ export interface LocationData {
   lon: number;
 }
 
-const OPENWEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || 'demo';
+const OPENWEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || '';
+
+if (!OPENWEATHER_API_KEY) {
+  console.warn('OpenWeather API key not found. Using location-based mock data. Get a free key at https://openweathermap.org/api');
+}
 
 export async function getCurrentLocation(): Promise<LocationData> {
   try {
@@ -67,15 +71,29 @@ export async function getCurrentLocation(): Promise<LocationData> {
 }
 
 export async function getWeatherData(lat: number, lon: number, locationName: string): Promise<WeatherData> {
+  if (!OPENWEATHER_API_KEY) {
+    return getMockWeatherData(locationName);
+  }
+
   try {
     const currentResponse = await fetch(
       `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`
     );
+
+    if (!currentResponse.ok) {
+      throw new Error('Weather API request failed');
+    }
+
     const currentData = await currentResponse.json();
 
     const forecastResponse = await fetch(
       `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`
     );
+
+    if (!forecastResponse.ok) {
+      throw new Error('Forecast API request failed');
+    }
+
     const forecastData = await forecastResponse.json();
 
     const dailyForecasts = processForecastData(forecastData.list);
@@ -292,84 +310,107 @@ function assessPlantingConditions(current: any, forecast: any[]): WeatherData['p
 }
 
 function getMockWeatherData(locationName: string): WeatherData {
+  const hash = locationName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seed = hash % 1000;
+
+  const baseTemp = 20 + (seed % 15);
+  const baseHumidity = 50 + (seed % 40);
+  const baseWind = 5 + (seed % 15);
+  const basePrecip = (seed % 10);
+
+  const weatherConditions = [
+    { description: 'clear sky', icon: '01d' },
+    { description: 'partly cloudy', icon: '02d' },
+    { description: 'scattered clouds', icon: '03d' },
+    { description: 'light rain', icon: '10d' },
+    { description: 'moderate rain', icon: '10d' }
+  ];
+
+  const condition = weatherConditions[seed % weatherConditions.length];
+
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const forecast = Array.from({ length: 5 }, (_, i) => {
+    const dayOffset = seed % 3;
+    const date = new Date(Date.now() + i * 86400000);
+    const tempVariation = (seed % 5) - 2;
+
+    return {
+      date: date.toISOString().split('T')[0],
+      day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `Day ${i + 1}`,
+      temp: {
+        min: baseTemp - 4 + tempVariation,
+        max: baseTemp + 6 + tempVariation
+      },
+      humidity: baseHumidity + (i % 10),
+      precipitation: basePrecip + (i % 5),
+      description: weatherConditions[(seed + i) % weatherConditions.length].description,
+      icon: weatherConditions[(seed + i) % weatherConditions.length].icon
+    };
+  });
+
+  const alerts: WeatherData['alerts'] = [];
+  if (baseTemp > 32) {
+    alerts.push({
+      type: 'heatwave',
+      message: 'High temperature alert. Ensure adequate irrigation for crops.',
+      severity: 'high'
+    });
+  }
+
+  if (basePrecip > 7) {
+    alerts.push({
+      type: 'heavy-rain',
+      message: 'Heavy rainfall expected. Ensure proper drainage.',
+      severity: 'medium'
+    });
+  }
+
+  const farmingAdvice: WeatherData['farmingAdvice'] = [];
+  if (basePrecip < 3 && baseWind < 8 && baseTemp < 30) {
+    farmingAdvice.push({
+      message: 'Good conditions for spraying and fertilizing',
+      type: 'positive'
+    });
+  } else if (basePrecip > 8) {
+    farmingAdvice.push({
+      message: 'Postpone fertilizer application until after the rain',
+      type: 'caution'
+    });
+  } else {
+    farmingAdvice.push({
+      message: 'Normal farming conditions - proceed with regular activities',
+      type: 'positive'
+    });
+  }
+
+  if (baseWind > 12) {
+    farmingAdvice.push({
+      message: 'High winds - postpone any spraying activities',
+      type: 'warning'
+    });
+  }
+
+  const plantingStatus = baseTemp >= 20 && baseTemp <= 30 && basePrecip > 3
+    ? { status: 'ideal' as const, message: 'Excellent conditions for planting most crops' }
+    : baseTemp >= 18 && baseTemp <= 32
+    ? { status: 'good' as const, message: 'Suitable for planting - monitor moisture levels' }
+    : { status: 'poor' as const, message: 'Wait for better temperature conditions' };
+
   return {
     location: locationName,
     current: {
-      temp: 28,
-      feelsLike: 30,
-      humidity: 65,
-      windSpeed: 12,
-      description: 'partly cloudy',
-      icon: '02d'
+      temp: baseTemp,
+      feelsLike: baseTemp + 2,
+      humidity: baseHumidity,
+      windSpeed: baseWind,
+      description: condition.description,
+      icon: condition.icon
     },
-    forecast: [
-      {
-        date: new Date().toISOString().split('T')[0],
-        day: 'Today',
-        temp: { min: 22, max: 30 },
-        humidity: 65,
-        precipitation: 2,
-        description: 'partly cloudy',
-        icon: '02d'
-      },
-      {
-        date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-        day: 'Tomorrow',
-        temp: { min: 23, max: 31 },
-        humidity: 70,
-        precipitation: 5,
-        description: 'light rain',
-        icon: '10d'
-      },
-      {
-        date: new Date(Date.now() + 172800000).toISOString().split('T')[0],
-        day: 'Day 3',
-        temp: { min: 21, max: 29 },
-        humidity: 75,
-        precipitation: 8,
-        description: 'moderate rain',
-        icon: '10d'
-      },
-      {
-        date: new Date(Date.now() + 259200000).toISOString().split('T')[0],
-        day: 'Day 4',
-        temp: { min: 22, max: 28 },
-        humidity: 68,
-        precipitation: 3,
-        description: 'scattered clouds',
-        icon: '03d'
-      },
-      {
-        date: new Date(Date.now() + 345600000).toISOString().split('T')[0],
-        day: 'Day 5',
-        temp: { min: 23, max: 30 },
-        humidity: 60,
-        precipitation: 0,
-        description: 'clear sky',
-        icon: '01d'
-      }
-    ],
-    alerts: [
-      {
-        type: 'heavy-rain',
-        message: 'Moderate rainfall expected tomorrow. Ensure proper drainage.',
-        severity: 'medium'
-      }
-    ],
-    farmingAdvice: [
-      {
-        message: 'Good conditions for spraying tomorrow morning',
-        type: 'positive'
-      },
-      {
-        message: 'Postpone fertilizer application until after the rain',
-        type: 'caution'
-      }
-    ],
-    plantingWindows: {
-      status: 'good',
-      message: 'Suitable for planting most crops - monitor moisture levels'
-    }
+    forecast,
+    alerts,
+    farmingAdvice,
+    plantingWindows: plantingStatus
   };
 }
 
