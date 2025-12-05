@@ -136,6 +136,7 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
           type="file"
           ref={fileInputRef}
           accept="image/*"
+          capture="environment"
           onChange={handleImageSelect}
           className="hidden"
         />
