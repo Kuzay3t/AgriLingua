@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
