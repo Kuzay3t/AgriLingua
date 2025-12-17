@@ -1,5 +1,16 @@
 import { Loader2, User, Bot } from 'lucide-react';
-import type { Message } from './ChatBot';
+import { useEffect, useState } from 'react';
+import { t } from '../i18n/languageManager';
+
+// Define the Message type locally since it's different from ChatBot's Message type
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  image?: string;
+  audioUrl?: string;
+  timestamp: Date;
+}
 
 interface MessageListProps {
   messages: Message[];
@@ -7,6 +18,30 @@ interface MessageListProps {
 }
 
 export default function MessageList({ messages, isLoading }: MessageListProps) {
+  const [uiText, setUiText] = useState({
+    imageReady: 'Image ready to send',
+    voiceMessage: 'Voice message'
+  });
+
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      setUiText({
+        imageReady: t('chatInputImageReady'),
+        voiceMessage: t('chatInputVoiceMessage')
+      });
+    };
+
+    // Listen for language changes
+    window.addEventListener('agri:lang-changed', handleLanguageChange);
+    
+    // Set initial text
+    handleLanguageChange();
+    
+    return () => {
+      window.removeEventListener('agri:lang-changed', handleLanguageChange);
+    };
+  }, []);
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
       {messages.map((message) => (
@@ -42,11 +77,11 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
                   : 'bg-white text-gray-900 rounded-tl-none'
               }`}
             >
-              {message.imageUrl && (
+              {message.image && (
                 <div className="mb-2">
                   <img
-                    src={message.imageUrl}
-                    alt="Uploaded crop"
+                    src={message.image}
+                    alt={uiText.imageReady}
                     className="rounded-lg max-w-full h-auto"
                   />
                 </div>
@@ -54,7 +89,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
               {message.audioUrl && (
                 <div className="mb-2">
                   <audio controls src={message.audioUrl} className="max-w-full">
-                    Your browser does not support the audio element.
+                    {uiText.voiceMessage}
                   </audio>
                 </div>
               )}

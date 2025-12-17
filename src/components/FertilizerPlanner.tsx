@@ -1,19 +1,32 @@
-import { useState } from 'react';
-import { ArrowLeft, Leaf, Loader2, Calendar, DollarSign, Package } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Leaf, Loader2, Calendar, DollarSign } from 'lucide-react';
 import { generateFertilizerRecommendation, type FertilizerInput, type FertilizerRecommendation } from '../utils/fertilizerData';
+import { SUPPORTED_LANGUAGES, getCurrentLangCode, translateText, setAppLanguage, t } from '../i18n/languageManager';
 
 interface FertilizerPlannerProps {
   onBack: () => void;
 }
 
 export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
-  const [formData, setFormData] = useState<FertilizerInput>({
+  const [formData, setFormData] = useState({
     cropType: '',
     soilType: '',
     fieldSize: 1,
   });
+  const [uiText, setUiText] = useState({
+    title: 'Fertilizer Planner',
+    subtitle: 'Get personalized fertilizer recommendations with application schedules and quantities.',
+    cropLabel: 'Crop',
+    stageLabel: 'Growth Stage',
+    amountLabel: 'Recommended Amount',
+    generateBtn: 'Get Fertilizer Plan',
+    generating: 'Preparing plan...',
+    back: 'Back to Tools',
+  });
+
   const [loading, setLoading] = useState(false);
   const [recommendation, setRecommendation] = useState<FertilizerRecommendation | null>(null);
+  const [error, setError] = useState('');
 
   const crops = [
     'Rice',
@@ -36,16 +49,43 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
     'Not Sure'
   ];
 
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      setUiText({
+        title: t('toolsFertilizerPlanner'),
+        subtitle: t('toolsFertilizerPlannerDesc'),
+        cropLabel: t('cropLabel') || 'Crop',
+        stageLabel: t('stageLabel') || 'Growth Stage',
+        amountLabel: t('amountLabel') || 'Recommended Amount',
+        generateBtn: t('toolsFertilizerPlanner') || 'Get Fertilizer Plan',
+        generating: t('generating') || 'Preparing plan...',
+        back: t('toolsBack') || 'Back to Tools',
+      });
+    };
+
+    // Listen for language changes
+    window.addEventListener('agri:lang-changed', handleLanguageChange);
+    
+    // Set initial text
+    handleLanguageChange();
+    
+    return () => {
+      window.removeEventListener('agri:lang-changed', handleLanguageChange);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setRecommendation(null);
+    setError('');
 
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
       const result = generateFertilizerRecommendation(formData);
       setRecommendation(result);
     } catch (error) {
+      setError('Error generating fertilizer recommendation. Please try again.');
       console.error('Error generating recommendation:', error);
     } finally {
       setLoading(false);
@@ -55,14 +95,15 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Tools
+            {uiText.back}
           </button>
+          {/* Removed duplicate language selector - using global one in App.tsx */}
         </div>
       </header>
 
@@ -73,10 +114,10 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
               <Leaf className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Fertilizer Planner
+              {uiText.title}
             </h1>
             <p className="text-gray-600">
-              Get personalized fertilizer recommendations for your crop
+              {uiText.subtitle}
             </p>
           </div>
 
@@ -85,7 +126,7 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                   <Leaf className="w-4 h-4" />
-                  Crop Type
+                  {uiText.cropLabel}
                 </label>
                 <select
                   value={formData.cropType}
@@ -104,7 +145,7 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
 
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  <Package className="w-4 h-4" />
+                  <Leaf className="w-4 h-4" />
                   Soil Type
                 </label>
                 <select
@@ -147,10 +188,10 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Calculating...
+                    {uiText.generating}
                   </>
                 ) : (
-                  'Get Fertilizer Plan'
+                  uiText.generateBtn
                 )}
               </button>
             </form>
@@ -218,28 +259,6 @@ export default function FertilizerPlanner({ onBack }: FertilizerPlannerProps) {
                     Additional Notes & Tips
                   </h3>
                   <p className="text-gray-700 leading-relaxed">{recommendation.additionalNotes}</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Important Reminders</h3>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                      <span className="text-teal-600 mt-1">•</span>
-                      <span>Always conduct soil tests for precise nutrient recommendations</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-teal-600 mt-1">•</span>
-                      <span>Apply fertilizers when soil is moist but not waterlogged</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-teal-600 mt-1">•</span>
-                      <span>Split applications are more efficient than single large doses</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-teal-600 mt-1">•</span>
-                      <span>Store fertilizers in a cool, dry place away from moisture</span>
-                    </li>
-                  </ul>
                 </div>
               </div>
             )}

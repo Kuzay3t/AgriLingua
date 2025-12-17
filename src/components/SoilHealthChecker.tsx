@@ -1,19 +1,59 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Droplets, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { analyzeSoilHealth, type SoilCharacteristics, type SoilHealthResult } from '../utils/soilHealthData';
+import { analyzeSoilHealth, type SoilCharacteristics, type SoilAnalysis } from '../utils/soilHealthData';
+import { SUPPORTED_LANGUAGES, getCurrentLangCode, translateText, setAppLanguage, t } from '../i18n/languageManager';
 
 interface SoilHealthCheckerProps {
   onBack: () => void;
 }
 
 export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
+  // UI strings that will be translated
+  const [uiText, setUiText] = useState({
+    title: 'Soil Health Checker',
+    subtitle: 'Analyze your soil characteristics to understand its health and suitability',
+    colorLabel: 'Soil Color',
+    textureLabel: 'Soil Texture',
+    moistureLabel: 'Moisture Level',
+    analyzeBtn: 'Analyze Soil Health',
+    analyzing: 'Analyzing Soil...',
+    back: 'Back to Tools',
+  });
+  const currentLang = getCurrentLangCode();
+
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      setUiText({
+        title: t('toolsSoilHealth'),
+        subtitle: t('toolsSoilHealthDesc'),
+        colorLabel: t('colorLabel') || 'Soil Color',
+        textureLabel: t('textureLabel') || 'Soil Texture',
+        moistureLabel: t('moistureLabel') || 'Moisture Level',
+        analyzeBtn: t('toolsSoilHealth') || 'Analyze Soil Health',
+        analyzing: t('analyzing') || 'Analyzing Soil...',
+        back: t('toolsBack') || 'Back to Tools',
+      });
+    };
+
+    // Listen for language changes
+    window.addEventListener('agri:lang-changed', handleLanguageChange);
+    
+    // Set initial text
+    handleLanguageChange();
+    
+    return () => {
+      window.removeEventListener('agri:lang-changed', handleLanguageChange);
+    };
+  }, []);
+
   const [formData, setFormData] = useState<SoilCharacteristics>({
     color: '',
     texture: '',
     moisture: '',
   });
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<SoilHealthResult | null>(null);
+  const [analysis, setAnalysis] = useState<SoilAnalysis | null>(null);
+  const [error, setError] = useState('');
 
   const colors = [
     'Dark brown/black',
@@ -40,14 +80,15 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setResult(null);
+    setAnalysis(null);
+    setError('');
 
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
       const analysis = analyzeSoilHealth(formData);
-      setResult(analysis);
-    } catch (error) {
-      console.error('Error analyzing soil:', error);
+      setAnalysis(analysis);
+    } catch (err) {
+      setError('Error analyzing soil. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -86,13 +127,18 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Tools
-          </button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                {uiText.back}
+              </button>
+            </div>
+            {/* Removed duplicate language selector - using global one in App.tsx */}
+          </div>
         </div>
       </header>
 
@@ -103,10 +149,10 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
               <Droplets className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Soil Health Checker
+              {uiText.title}
             </h1>
             <p className="text-gray-600">
-              Analyze your soil characteristics to understand its health and suitability
+              {uiText.subtitle}
             </p>
           </div>
 
@@ -114,7 +160,7 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  Soil Color
+                  {uiText.colorLabel}
                 </label>
                 <select
                   value={formData.color}
@@ -134,7 +180,7 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
 
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                  Soil Texture
+                  {uiText.textureLabel}
                 </label>
                 <select
                   value={formData.texture}
@@ -155,7 +201,7 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                   <Droplets className="w-4 h-4" />
-                  Moisture Level
+                  {uiText.moistureLabel}
                 </label>
                 <select
                   value={formData.moisture}
@@ -181,31 +227,31 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Analyzing Soil...
+                    {uiText.analyzing}
                   </>
                 ) : (
-                  'Analyze Soil Health'
+                  uiText.analyzeBtn
                 )}
               </button>
             </form>
 
-            {result && (
+            {analysis && (
               <div className="mt-8 pt-8 border-t border-gray-200 space-y-6">
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Soil Analysis Results</h3>
                   <div className="grid md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <span className="text-sm text-gray-600">Identified Soil Type</span>
-                      <p className="text-xl font-bold text-gray-900">{result.soilType}</p>
+                      <p className="text-xl font-bold text-gray-900">{analysis.soilType}</p>
                     </div>
                     <div>
                       <span className="text-sm text-gray-600">Health Score</span>
                       <div className="flex items-center gap-2">
-                        <p className={`text-3xl font-bold ${getScoreColor(result.healthScore)}`}>
-                          {result.healthScore}
+                        <p className={`text-3xl font-bold ${getScoreColor(analysis.healthScore)}`}>
+                          {analysis.healthScore}
                         </p>
-                        <span className={`text-sm font-semibold ${getScoreColor(result.healthScore)}`}>
-                          / 100 ({getScoreLabel(result.healthScore)})
+                        <span className={`text-sm font-semibold ${getScoreColor(analysis.healthScore)}`}>
+                          / 100 ({getScoreLabel(analysis.healthScore)})
                         </span>
                       </div>
                     </div>
@@ -213,10 +259,10 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
                       className={`h-3 rounded-full transition-all duration-500 ${
-                        result.healthScore >= 80 ? 'bg-green-600' :
-                        result.healthScore >= 60 ? 'bg-yellow-600' : 'bg-red-600'
+                        analysis.healthScore >= 80 ? 'bg-green-600' :
+                        analysis.healthScore >= 60 ? 'bg-yellow-600' : 'bg-red-600'
                       }`}
-                      style={{ width: `${result.healthScore}%` }}
+                      style={{ width: `${analysis.healthScore}%` }}
                     />
                   </div>
                 </div>
@@ -227,61 +273,61 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-gray-900">Nitrogen (N)</h4>
-                        <span className={`font-bold ${getNutrientLevelColor(result.nutrientProfile.nitrogen.level)}`}>
-                          {result.nutrientProfile.nitrogen.level}
+                        <span className={`font-bold ${getNutrientLevelColor(analysis.nutrientProfile.nitrogen.level)}`}>
+                          {analysis.nutrientProfile.nitrogen.level}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{result.nutrientProfile.nitrogen.description}</p>
+                      <p className="text-sm text-gray-600">{analysis.nutrientProfile.nitrogen.description}</p>
                     </div>
 
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-gray-900">Phosphorus (P)</h4>
-                        <span className={`font-bold ${getNutrientLevelColor(result.nutrientProfile.phosphorus.level)}`}>
-                          {result.nutrientProfile.phosphorus.level}
+                        <span className={`font-bold ${getNutrientLevelColor(analysis.nutrientProfile.phosphorus.level)}`}>
+                          {analysis.nutrientProfile.phosphorus.level}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{result.nutrientProfile.phosphorus.description}</p>
+                      <p className="text-sm text-gray-600">{analysis.nutrientProfile.phosphorus.description}</p>
                     </div>
 
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-gray-900">Potassium (K)</h4>
-                        <span className={`font-bold ${getNutrientLevelColor(result.nutrientProfile.potassium.level)}`}>
-                          {result.nutrientProfile.potassium.level}
+                        <span className={`font-bold ${getNutrientLevelColor(analysis.nutrientProfile.potassium.level)}`}>
+                          {analysis.nutrientProfile.potassium.level}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{result.nutrientProfile.potassium.description}</p>
+                      <p className="text-sm text-gray-600">{analysis.nutrientProfile.potassium.description}</p>
                     </div>
 
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-gray-900">Organic Matter</h4>
-                        <span className={`font-bold ${getNutrientLevelColor(result.nutrientProfile.organicMatter.level)}`}>
-                          {result.nutrientProfile.organicMatter.level}
+                        <span className={`font-bold ${getNutrientLevelColor(analysis.nutrientProfile.organicMatter.level)}`}>
+                          {analysis.nutrientProfile.organicMatter.level}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{result.nutrientProfile.organicMatter.description}</p>
+                      <p className="text-sm text-gray-600">{analysis.nutrientProfile.organicMatter.description}</p>
                     </div>
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-900">pH Level</h4>
-                      <span className="font-bold text-blue-700">{result.nutrientProfile.ph.level}</span>
+                      <span className="font-bold text-blue-700">{analysis.nutrientProfile.ph.level}</span>
                     </div>
-                    <p className="text-sm text-gray-600">{result.nutrientProfile.ph.description}</p>
+                    <p className="text-sm text-gray-600">{analysis.nutrientProfile.ph.description}</p>
                   </div>
                 </div>
 
-                {result.concerns.length > 0 && (
+                {analysis.concerns.length > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <AlertCircle className="w-5 h-5 text-red-600" />
                       Concerns Identified
                     </h3>
                     <ul className="space-y-2">
-                      {result.concerns.map((concern, index) => (
+                      {analysis.concerns.map((concern, index) => (
                         <li key={index} className="flex items-start gap-2 text-gray-700">
                           <span className="text-red-600 font-bold mt-1">•</span>
                           <span>{concern}</span>
@@ -297,7 +343,7 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
                     Recommendations
                   </h3>
                   <ul className="space-y-2">
-                    {result.recommendations.map((rec, index) => (
+                    {analysis.recommendations.map((rec, index) => (
                       <li key={index} className="flex items-start gap-2 text-gray-700">
                         <span className="text-green-600 font-bold mt-1">{index + 1}.</span>
                         <span>{rec}</span>
@@ -309,7 +355,7 @@ export default function SoilHealthChecker({ onBack }: SoilHealthCheckerProps) {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Crop Suitability Analysis</h3>
                   <div className="space-y-3">
-                    {result.suitableCrops.map((crop, index) => (
+                    {analysis.suitableCrops.map((crop, index) => (
                       <div key={index} className={`border rounded-lg p-4 ${getSuitabilityColor(crop.suitability)}`}>
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-semibold text-lg">{crop.crop}</h4>

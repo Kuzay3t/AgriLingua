@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, Loader2, MapPin, Droplets, Leaf } from 'lucide-react';
 import { generateRecommendations, type FormData, type Recommendation } from '../utils/cropData';
+import { SUPPORTED_LANGUAGES, getCurrentLangCode, translateText, setAppLanguage, t } from '../i18n/languageManager';
 
 interface CropPlannerProps {
   onBack: () => void;
@@ -13,9 +14,20 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
     rainfall: '',
     cropInterest: '',
   });
-  const [loading, setLoading] = useState(false);
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uiText, setUiText] = useState({
+    title: 'Crop Planner',
+    subtitle: 'Get personalized crop recommendations based on your location, soil type, and rainfall patterns.',
+    locationLabel: 'Location',
+    soilLabel: 'Soil Type',
+    rainfallLabel: 'Rainfall Pattern',
+    generateBtn: 'Get Recommendations',
+    generating: 'Generating recommendations...',
+    back: 'Back to Tools',
+  });
+  const currentLang = getCurrentLangCode();
 
   const nigerianStates = [
     'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
@@ -61,17 +73,41 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
     'Not Sure'
   ];
 
+  useEffect(() => {
+    const handleLanguageChange = () => {
+      setUiText({
+        title: t('toolsCropPlanner'),
+        subtitle: t('toolsCropPlannerDesc'),
+        locationLabel: t('locationLabel') || 'Location',
+        soilLabel: t('soilLabel') || 'Soil Type',
+        rainfallLabel: t('rainfallLabel') || 'Rainfall Pattern',
+        generateBtn: t('toolsBestCrops') || 'Get Recommendations',
+        generating: t('generating') || 'Generating recommendations...',
+        back: t('toolsBack') || 'Back to Tools',
+      });
+    };
+
+    // Listen for language changes
+    window.addEventListener('agri:lang-changed', handleLanguageChange);
+    
+    // Set initial text
+    handleLanguageChange();
+    
+    return () => {
+      window.removeEventListener('agri:lang-changed', handleLanguageChange);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setRecommendation(null);
 
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const recommendations = generateRecommendations(formData);
-      setRecommendation(recommendations);
+      const recommendation = generateRecommendations(formData);
+      setRecommendation(recommendation);
     } catch (err) {
       setError('Failed to get crop recommendations. Please try again.');
       console.error(err);
@@ -83,14 +119,14 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Tools
-          </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={onBack} className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              {uiText.back}
+            </button>
+          </div>
+          {/* Removed duplicate language selector - using global one in App.tsx */}
         </div>
       </header>
 
@@ -101,10 +137,10 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
               <Calendar className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Crop Planner
+              {uiText.title}
             </h1>
             <p className="text-gray-600">
-              Get personalized crop recommendations for your farm
+              {uiText.subtitle}
             </p>
           </div>
 
@@ -113,7 +149,7 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                   <MapPin className="w-4 h-4" />
-                  Location (State)
+                  {uiText.locationLabel}
                 </label>
                 <select
                   value={formData.location}
@@ -133,7 +169,7 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                   <Leaf className="w-4 h-4" />
-                  Soil Type
+                  {uiText.soilLabel}
                 </label>
                 <select
                   value={formData.soilType}
@@ -153,7 +189,7 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                   <Droplets className="w-4 h-4" />
-                  Rainfall Pattern
+                  {uiText.rainfallLabel}
                 </label>
                 <select
                   value={formData.rainfall}
@@ -204,10 +240,10 @@ export default function CropPlanner({ onBack }: CropPlannerProps) {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Analyzing...
+                    {uiText.generating}
                   </>
                 ) : (
-                  'Get Recommendations'
+                  uiText.generateBtn
                 )}
               </button>
             </form>
